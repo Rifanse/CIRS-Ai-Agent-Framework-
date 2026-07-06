@@ -1,9 +1,9 @@
-CIRS Innovation Engine
+# CIRS Innovation Engine
 Version 2.0
 Critical Innovation and Research System
-================================================================================
+-------------------------------------------------------------------------------
 
-OVERVIEW
+## OVERVIEW
 
 CIRS is a closed, encrypted multi-agent AI innovation system. It runs a
 12-stage pipeline that transforms any problem into a fully battle-tested,
@@ -14,7 +14,7 @@ to disk in plaintext. Only the runtime memory holds the active code.
 
 ================================================================================
 
-REQUIREMENTS
+## REQUIREMENTS
 
 - Windows 10 / 11 (64-bit)
 - PowerShell 5.1 or later (included with Windows)
@@ -27,7 +27,7 @@ REQUIREMENTS
 
 ================================================================================
 
-# INSTALLATION
+## INSTALLATION
 ```
 Step 1 — Place both files in the same folder:
     setup.ps1
