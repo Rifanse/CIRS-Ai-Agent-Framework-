@@ -45,7 +45,7 @@ Step 3 — Close and reopen your terminal after setup completes.
 
 OR Simple Use Powershell to instalations
 ```
-irm https://github.com/Rifanse/CIRS-Ai-Agent-Framework-/blob/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Rifanse/CIRS-Ai-Agent-Framework-/main/install.ps1 | iex
 ```
 
 ## USAGE
