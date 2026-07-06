@@ -1,9 +1,9 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 param([string]$InstallDir = "$env:USERPROFILE\.cirs")
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# ─── ANSI Color Helpers ────────────────────────────────────────────────────────
+# â”€â”€â”€ ANSI Color Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 $ESC = [char]27
 function c([string]$t) { "$ESC[${t}m" }
 $CYAN    = c "96"; $YELLOW = c "93"; $GREEN = c "92"
@@ -36,7 +36,7 @@ Write-Host ""
 $WORKSPACE = "$env:USERPROFILE\CIRS_Workspace"
 $REQUIRED  = "textual","fastapi","uvicorn","httpx","psutil","litellm","rich","pydantic"
 
-# ─── Step 1: Find Python ─────────────────────────────────────────────────────
+# â”€â”€â”€ Step 1: Find Python â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Step "Detecting Python 3.10+..."
 $py = $null
 $candidates = @("python","python3","py",
@@ -61,8 +61,9 @@ if (-not $py) {
     } catch { Fail "Cannot install Python. Visit https://python.org" }
 }
 
-# ─── Step 2: Packages ────────────────────────────────────────────────────────
+# â”€â”€â”€ Step 2: Packages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Step "Installing Python packages..."
+try { & $py -m pip uninstall -y cirs --quiet 2>&1 | Out-Null } catch {}
 & $py -m pip install --upgrade pip --quiet 2>&1 | Out-Null
 $miss = @()
 foreach ($pkg in $REQUIRED) {
@@ -78,7 +79,7 @@ if ($miss.Count -gt 0) {
 }
 OK "All packages ready."
 
-# ─── Step 3: Directories ─────────────────────────────────────────────────────
+# â”€â”€â”€ Step 3: Directories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Step "Preparing workspace..."
 @($InstallDir,"$WORKSPACE","$WORKSPACE\output","$WORKSPACE\sessions") | ForEach-Object {
     if (-not (Test-Path $_)) { New-Item -ItemType Directory -Path $_ -Force | Out-Null }
@@ -89,7 +90,7 @@ if (-not (Test-Path $cfgFile)) {
 }
 OK "Workspace ready: $WORKSPACE"
 
-# ─── Step 4: Write core.repack from embedded base64 ──────────────────────────
+# â”€â”€â”€ Step 4: Write core.repack from embedded base64 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Step "Decoding and writing core.repack..."
 $b64 = @"
 Q0lSUxoBAesceJSD3gDPqfn3kt6SGkpvmgAAAAAAAFgNTQme6qyAHmiw8ek+dLJcVsHkL0T5JnFw0lpf
@@ -758,7 +759,7 @@ $bytes = [Convert]::FromBase64String($b64)
 [IO.File]::WriteAllBytes("$InstallDir\core.repack", $bytes)
 OK "core.repack written ($([math]::Round($bytes.Length/1KB,1)) KB)"
 
-# ─── Step 5: Write Loader ────────────────────────────────────────────────────
+# â”€â”€â”€ Step 5: Write Loader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Step "Writing runtime loader..."
 $loader = @"
 import sys, os, struct, hashlib, zlib, zipfile, io, importlib, types
@@ -783,33 +784,45 @@ def _load(pw):
     if hashlib.sha256(salt+enc+key).digest()!=hm: raise RuntimeError('Auth failed')
     return zlib.decompress(_xor(enc,key))
 
+import importlib.abc, importlib.machinery
+class RepackFinder(importlib.abc.MetaPathFinder):
+    def __init__(self, vfs):
+        self.vfs = vfs
+        self.names = set(vfs.namelist())
+    def find_spec(self, fullname, path, target=None):
+        parts = fullname.split('.')
+        pkg_path = '/'.join(parts) + '/__init__.py'
+        if pkg_path in self.names:
+            return importlib.machinery.ModuleSpec(fullname, RepackLoader(self.vfs, pkg_path), is_package=True)
+        mod_path = '/'.join(parts) + '.py'
+        if mod_path in self.names:
+            return importlib.machinery.ModuleSpec(fullname, RepackLoader(self.vfs, mod_path), is_package=False)
+        return None
+
+class RepackLoader(importlib.abc.Loader):
+    def __init__(self, vfs, path):
+        self.vfs = vfs
+        self.path = path
+    def exec_module(self, module):
+        code = self.vfs.read(self.path).decode()
+        exec(compile(code, f'<repack:{self.path}>', 'exec'), module.__dict__)
+
 def _inject(zdata):
-    vfs=zipfile.ZipFile(io.BytesIO(zdata))
-    def mk(n,c,p=False):
-        m=types.ModuleType(n); m.__package__=n if p else n.rpartition('.')[0]
-        m.__path__=[] if p else None; m.__file__='<repack>'; m.__spec__=None
-        sys.modules[n]=m; exec(compile(c,f'<repack:{n}>','exec'),m.__dict__)
-    d={}
-    for f in sorted(vfs.namelist()):
-        if not f.endswith('.py') or f in ('tui.py','server/main.py'): continue
-        parts=f[:-3].split('/'); code=vfs.read(f).decode()
-        if parts[-1]=='__init__': mk('.'.join(parts[:-1]),code,True)
-        else: d['.'.join(parts)]=code
-    for n,c in d.items():
-        if n not in sys.modules: mk(n,c)
+    vfs = zipfile.ZipFile(io.BytesIO(zdata))
+    sys.meta_path.insert(0, RepackFinder(vfs))
     return vfs.read('tui.py').decode() if 'tui.py' in vfs.namelist() else None
 
 if __name__=='__main__':
     try:
         t=_inject(_load('MYTZ_DEV_CZ'))
         if not t: print('ERROR: tui missing'); sys.exit(1)
-        exec(compile(t,'<tui>','exec'),{'__name__':'__main__'})
+        exec(compile(t,'<tui>','exec'),{'__name__':'__main__', '__file__': str(_PACK.parent / 'tui.py')})
     except RuntimeError as e: print(f'CIRS: {e}'); sys.exit(1)
 "@
 $loader | Set-Content "$InstallDir\_cirs_loader.py" -Encoding UTF8
 OK "Loader written."
 
-# ─── Step 6: Register 'cirs' command ─────────────────────────────────────────
+# â”€â”€â”€ Step 6: Register 'cirs' command â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Step "Registering 'cirs' command..."
 "@echo off`r`n`"$py`" `"$InstallDir\_cirs_loader.py`" %*" | Set-Content "$InstallDir\cirs.cmd" -Encoding ASCII
 $cur = [System.Environment]::GetEnvironmentVariable("PATH","User")
@@ -819,7 +832,7 @@ if ($cur -notlike "*$InstallDir*") {
 $env:PATH = "$env:PATH;$InstallDir"
 OK "'cirs' registered in PATH."
 
-# ─── Done: Print Tutorial ─────────────────────────────────────────────────────
+# â”€â”€â”€ Done: Print Tutorial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 Write-Host ""
 Write-Host "${CYAN}${BOLD}  ====================================================${RESET}"
 Write-Host "${GREEN}${BOLD}  CIRS is ready.${RESET}"
@@ -849,3 +862,7 @@ Write-Host "${GRAY}  $WORKSPACE\output\${RESET}"
 Write-Host ""
 Write-Host "${YELLOW}  Restart your terminal before running 'cirs'${RESET}"
 Write-Host ""
+
+
+
+
