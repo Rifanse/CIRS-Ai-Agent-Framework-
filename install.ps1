@@ -19,14 +19,25 @@ function Fail([string]$Message) {
 }
 
 function Get-LocalScriptRoot {
-    if ($PSScriptRoot -and $PSScriptRoot.Trim() -ne "") {
+    if (($PSScriptRoot -is [string]) -and (-not [string]::IsNullOrWhiteSpace($PSScriptRoot))) {
         return $PSScriptRoot
     }
 
+    if (($PSCommandPath -is [string]) -and (-not [string]::IsNullOrWhiteSpace($PSCommandPath))) {
+        return (Split-Path -Parent $PSCommandPath)
+    }
+
     if ($MyInvocation -and $MyInvocation.MyCommand) {
-        $pathProperty = $MyInvocation.MyCommand.PSObject.Properties["Path"]
-        if ($pathProperty -and $pathProperty.Value -and $pathProperty.Value.Trim() -ne "") {
-            return (Split-Path -Parent $pathProperty.Value)
+        $commandPath = $null
+
+        try {
+            $commandPath = $MyInvocation.MyCommand.Path
+        } catch {
+            $commandPath = $null
+        }
+
+        if (($commandPath -is [string]) -and (-not [string]::IsNullOrWhiteSpace($commandPath))) {
+            return (Split-Path -Parent $commandPath)
         }
     }
 
