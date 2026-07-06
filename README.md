@@ -1,3 +1,5 @@
+![Simpel Ui - TUI usages for Cli.]([https://myoctocat.com/assets/images/base-octocat.svg](https://github.com/Rifanse/CIRS-Ai-Agent-Framework-/edit/main/image.png))
+
 # CIRS Innovation Engine
 *Version 2.0*
 *Critical Innovation and Research System*
