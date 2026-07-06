@@ -8,6 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $RepoRawBase = "https://raw.githubusercontent.com/Rifanse/CIRS-Ai-Agent-Framework-/main"
+$RepoCdnBase = "https://cdn.jsdelivr.net/gh/Rifanse/CIRS-Ai-Agent-Framework-@main"
 $TempBootstrapDir = Join-Path $env:TEMP "cirs_bootstrap"
 
 function Write-Info([string]$Message) {
@@ -62,21 +63,69 @@ function Get-LocalScriptRoot {
     return $null
 }
 
+function Download-FileWithFallback {
+    param(
+        [string]$Label,
+        [string[]]$Urls,
+        [string]$OutFile
+    )
+
+    $headers = @{
+        "User-Agent" = "CIRS-Installer/1.0"
+        "Accept" = "*/*"
+        "Cache-Control" = "no-cache"
+    }
+
+    foreach ($url in $Urls) {
+        for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+                Write-Info ("Mengunduh {0} ({1}/3) dari: {2}" -f $Label, $attempt, $url)
+                Invoke-WebRequest -Uri $url -OutFile $OutFile -Headers $headers -UseBasicParsing
+
+                if ((Test-Path $OutFile) -and ((Get-Item $OutFile).Length -gt 0)) {
+                    Write-Ok "$Label berhasil diunduh"
+                    return
+                }
+            } catch {
+                $statusCode = $null
+                try {
+                    $statusCode = [int]$_.Exception.Response.StatusCode
+                } catch {
+                    $statusCode = $null
+                }
+
+                if ($statusCode -eq 429) {
+                    Write-Info "$Label kena rate limit (429). Mencoba mirror/fallback..."
+                } else {
+                    Write-Info ("Download {0} gagal: {1}" -f $Label, $_.Exception.Message)
+                }
+            }
+
+            Start-Sleep -Seconds $attempt
+        }
+    }
+
+    Fail "Gagal mengunduh $Label dari semua sumber yang tersedia."
+}
+
 function Download-InstallerFiles([string]$DestinationDir) {
     if (-not (Test-Path $DestinationDir)) {
         New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null
     }
 
-    $setupUrl = "$RepoRawBase/setup.ps1"
-    $repackUrl = "$RepoRawBase/core.repack"
     $setupPath = Join-Path $DestinationDir "setup.ps1"
     $repackPath = Join-Path $DestinationDir "core.repack"
+    $setupUrls = @(
+        "$RepoRawBase/setup.ps1",
+        "$RepoCdnBase/setup.ps1"
+    )
+    $repackUrls = @(
+        "$RepoRawBase/core.repack",
+        "$RepoCdnBase/core.repack"
+    )
 
-    Write-Info "Mengunduh setup.ps1 dari GitHub..."
-    Invoke-WebRequest -Uri $setupUrl -OutFile $setupPath
-
-    Write-Info "Mengunduh core.repack dari GitHub..."
-    Invoke-WebRequest -Uri $repackUrl -OutFile $repackPath
+    Download-FileWithFallback -Label "setup.ps1" -Urls $setupUrls -OutFile $setupPath
+    Download-FileWithFallback -Label "core.repack" -Urls $repackUrls -OutFile $repackPath
 
     if (-not (Test-Path $setupPath)) {
         Fail "Gagal mengunduh setup.ps1"
