@@ -27,8 +27,8 @@ REQUIREMENTS
 
 ================================================================================
 
-INSTALLATION
-
+# INSTALLATION
+```
 Step 1 — Place both files in the same folder:
     setup.ps1
     core.repack
@@ -44,7 +44,12 @@ The installer will:
   [>] Register the global 'cirs' command in your user PATH
 
 Step 3 — Close and reopen your terminal after setup completes.
+```
 
+OR Simple Use Powershell to instalations
+```
+irm https://github.com/Rifanse/CIRS-Ai-Agent-Framework-.git/main/install.ps1 | iex
+```
 ================================================================================
 
 USAGE
@@ -145,9 +150,17 @@ TROUBLESHOOTING
 
 ================================================================================
 
-SUPPORT
+## Authors
 
-This is a private, proprietary system.
-Unauthorized redistribution or reverse engineering is prohibited.
+Dev :  [@CMr_zo](https://github.com/Rifanse)
 
-================================================================================
+Tools To Make This Framework : == Antigravity ==
+
+_Frameworks is free, i hope this framework can be help on next How to think creativ_
+
+## Support
+
+Donate  : https://trakteer.id/RefZol/tip
+
+For more support you can contact, email debruegeorfaus@gmail.com or join our Community .
+
