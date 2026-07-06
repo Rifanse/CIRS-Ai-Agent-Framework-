@@ -1,199 +1,223 @@
 #Requires -Version 5.1
-param()
+param(
+    [switch]$Force
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$INSTALL_DIR  = "$env:USERPROFILE\.cirs"
-$WORKSPACE    = "$env:USERPROFILE\CIRS_Workspace"
-$CONFIG_DIR   = "$env:USERPROFILE\.cirs"
-$REPACK_FILE  = Join-Path $PSScriptRoot "core.repack"
+$InstallDir = Join-Path $env:USERPROFILE ".cirs"
+$WorkspaceDir = Join-Path $env:USERPROFILE "CIRS_Workspace"
+$ConfigFile = Join-Path $InstallDir "config.json"
+$RepackFile = Join-Path $PSScriptRoot "core.repack"
+$RequiredPackages = @("textual", "fastapi", "uvicorn", "httpx", "psutil", "rich", "pydantic")
 
-$REQUIRED_PACKAGES = "textual","fastapi","uvicorn","httpx","psutil","litellm","rich","pydantic"
-
-function Msg([string]$t,[string]$m){
-    $col = switch($t){
-        "STEP" {"Yellow"} "OK" {"Green"} "FAIL" {"Red"}
-        "INFO" {"Gray"} "HEAD" {"Cyan"} default {"White"}
-    }
-    Write-Host "  [$t] $m" -ForegroundColor $col
+function Write-Step([string]$Message) {
+    Write-Host "[STEP] $Message" -ForegroundColor Yellow
 }
 
-Write-Host ""
-Write-Host "  CIRS Innovation Engine v2.0 - Setup" -ForegroundColor Cyan
-Write-Host "  Critical Innovation and Research System" -ForegroundColor DarkCyan
-Write-Host ""
+function Write-Ok([string]$Message) {
+    Write-Host "[OK]   $Message" -ForegroundColor Green
+}
 
-# Step 1: Verify core.repack
-Msg "STEP" "Verifying core.repack..."
-if (-not (Test-Path $REPACK_FILE)) {
-    Msg "FAIL" "core.repack not found. Place core.repack next to setup.ps1"
+function Write-Info([string]$Message) {
+    Write-Host "[INFO] $Message" -ForegroundColor Gray
+}
+
+function Fail([string]$Message) {
+    Write-Host "[FAIL] $Message" -ForegroundColor Red
     exit 1
 }
-$sz = [math]::Round((Get-Item $REPACK_FILE).Length / 1024, 1)
-Msg "OK" "core.repack found - $sz KB"
 
-# Step 2: Find or install Python
-Msg "STEP" "Checking Python 3.10+..."
-$pythonCmd = $null
-$pythonPaths = @("python","python3","py",
-    "$env:USERPROFILE\AppData\Local\Programs\Python\Python310\python.exe",
-    "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe",
-    "$env:USERPROFILE\AppData\Local\Programs\Python\Python312\python.exe",
-    "C:\Python310\python.exe","C:\Python311\python.exe","C:\Python312\python.exe"
-)
-foreach ($cmd in $pythonPaths) {
-    try {
-        $raw = & $cmd --version 2>&1
-        if ("$raw" -match "Python (\d+)\.(\d+)") {
-            $maj = [int]$Matches[1]; $min = [int]$Matches[2]
-            if ($maj -ge 3 -and $min -ge 10) {
-                $pythonCmd = $cmd
-                Msg "OK" "Python $maj.$min detected"
-                break
+function Get-PythonCommand {
+    $pythonCandidates = @(
+        "python",
+        "py",
+        "$env:USERPROFILE\AppData\Local\Programs\Python\Python312\python.exe",
+        "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe",
+        "$env:USERPROFILE\AppData\Local\Programs\Python\Python310\python.exe",
+        "C:\Python312\python.exe",
+        "C:\Python311\python.exe",
+        "C:\Python310\python.exe"
+    )
+
+    foreach ($candidate in $pythonCandidates) {
+        try {
+            $versionOutput = & $candidate --version 2>&1
+            if ("$versionOutput" -match "Python (\d+)\.(\d+)") {
+                $major = [int]$Matches[1]
+                $minor = [int]$Matches[2]
+                if ($major -ge 3 -and $minor -ge 10) {
+                    return $candidate
+                }
             }
-        }
-    } catch {}
+        } catch {}
+    }
+
+    return $null
 }
-if (-not $pythonCmd) {
-    Msg "STEP" "Python 3.11+ not found. Attempting winget install..."
+
+Write-Host ""
+Write-Host "CIRS Framework Setup" -ForegroundColor Cyan
+Write-Host "Installer publik untuk core.repack + runtime loader" -ForegroundColor DarkCyan
+Write-Host ""
+
+Write-Step "Memeriksa file paket"
+if (-not (Test-Path $RepackFile)) {
+    Fail "File core.repack tidak ditemukan. Letakkan core.repack di folder yang sama dengan setup.ps1."
+}
+Write-Ok "core.repack ditemukan"
+
+Write-Step "Mencari Python 3.10+"
+$PythonCmd = Get-PythonCommand
+if (-not $PythonCmd) {
+    Write-Info "Python belum ditemukan. Mencoba install otomatis via winget..."
     try {
-        winget install --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent 2>&1 | Out-Null
-        $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
-        Msg "OK" "Python installed via winget."
-        $pythonCmd = "python"
-    } catch {
-        Msg "FAIL" "Could not auto-install Python. Install Python 3.11+ from https://python.org and re-run setup.ps1"
-        exit 1
+        winget install --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent | Out-Null
+    } catch {}
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    $PythonCmd = Get-PythonCommand
+}
+if (-not $PythonCmd) {
+    Fail "Python 3.10+ tidak ditemukan. Install Python dulu lalu jalankan setup.ps1 lagi."
+}
+Write-Ok "Python aktif: $PythonCmd"
+
+Write-Step "Menyiapkan folder instalasi"
+foreach ($dir in @($InstallDir, $WorkspaceDir, (Join-Path $WorkspaceDir "output"), (Join-Path $WorkspaceDir "sessions"))) {
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
 }
+Write-Ok "Folder instalasi siap"
 
-# Step 3: Install packages
-Msg "STEP" "Checking Python packages..."
-& $pythonCmd -m pip install --upgrade pip --quiet 2>&1 | Out-Null
-$toInstall = @()
-foreach ($pkg in $REQUIRED_PACKAGES) {
-    $check = & $pythonCmd -c "import importlib.util; spec=importlib.util.find_spec('$pkg'); exit(0 if spec else 1)" 2>&1
-    if ($LASTEXITCODE -ne 0) { $toInstall += $pkg }
-}
-if ($toInstall.Count -eq 0) {
-    Msg "OK" "All packages already installed."
-} else {
-    Msg "STEP" "Installing $($toInstall.Count) package(s)..."
-    foreach ($pkg in $toInstall) {
-        Msg "INFO" "pip install $pkg"
-        & $pythonCmd -m pip install $pkg --quiet 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { Msg "FAIL" "Failed: $pkg"; exit 1 }
-    }
-    Msg "OK" "All packages installed."
-}
+Write-Step "Menginstal dependency Python"
+& $PythonCmd -m pip install --upgrade pip | Out-Null
+& $PythonCmd -m pip install @RequiredPackages | Out-Null
+Write-Ok "Dependency selesai dipasang"
 
-# Step 4: Create dirs
-Msg "STEP" "Creating workspace and config directories..."
-foreach ($d in @($INSTALL_DIR,"$WORKSPACE","$WORKSPACE\output","$WORKSPACE\sessions")) {
-    if (-not (Test-Path $d)) {
-        New-Item -ItemType Directory -Path $d -Force | Out-Null
-    }
-}
-$cfgFile = Join-Path $CONFIG_DIR "config.json"
-if (-not (Test-Path $cfgFile)) {
-    $cfg = '{"default_provider":null,"default_model":null,"api_keys":{},"timeout":60,"max_retries":3,"debug":false,"output_language":"en"}'
-    Set-Content -Path $cfgFile -Value $cfg -Encoding UTF8
-}
-Msg "OK" "Directories ready."
+Write-Step "Menyalin core.repack"
+Copy-Item -Path $RepackFile -Destination (Join-Path $InstallDir "core.repack") -Force
+Write-Ok "core.repack tersalin ke $InstallDir"
 
-# Step 5: Copy core files
-Msg "STEP" "Installing core files to $INSTALL_DIR..."
-Copy-Item -Path $REPACK_FILE -Destination $INSTALL_DIR -Force
+Write-Step "Membuat runtime loader"
+$LoaderCode = @'
+#!/usr/bin/env python3
+"""CIRS encrypted runtime loader."""
+from __future__ import annotations
 
-# Write the inline loader to install dir
-$loaderDst = Join-Path $INSTALL_DIR "_cirs_loader.py"
-$wksp_escaped = $WORKSPACE -replace '\\', '\\\\'
-$cfg_escaped  = $CONFIG_DIR -replace '\\', '\\\\'
-
-$loader = @"
-import sys, os, struct, hashlib, zlib, zipfile, io, importlib, types
+import atexit
+import hashlib
+import io
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
+import zlib
 from pathlib import Path
-_MAGIC = b'CIRS\x1a\x01'
-_PACK  = Path(r'$INSTALL_DIR') / 'core.repack'
-_WKSP  = Path(r'$WORKSPACE')
-_CFG   = Path(r'$CONFIG_DIR')
-os.environ.setdefault('CIRS_WORKSPACE', str(_WKSP))
-os.environ.setdefault('CIRS_CONFIG', str(_CFG))
-sys.path.insert(0, str(_WKSP / 'sessions'))
 
-def _xor(data, key):
-    ks, seed = b'', key
-    while len(ks) < len(data):
-        seed = hashlib.sha256(seed).digest(); ks += seed
-    return bytes(a^b for a,b in zip(data, ks))
+_MAGIC = b"CIRS\x1a\x01"
+_PACK = Path(__file__).parent / "core.repack"
+_PASSWORD = os.environ.get("CIRS_REPACK_KEY", "MYTZ_DEV_CZ")
 
-def _load(pw):
+
+def _xor(data: bytes, key: bytes) -> bytes:
+    keystream = b""
+    seed = key
+    while len(keystream) < len(data):
+        seed = hashlib.sha256(seed).digest()
+        keystream += seed
+    return bytes(a ^ b for a, b in zip(data, keystream))
+
+
+def _decrypt(password: str) -> bytes:
     raw = _PACK.read_bytes()
-    if raw[:6] != _MAGIC: raise RuntimeError('Invalid core.repack')
-    salt = raw[7:23]; hmac_in = raw[31:63]; enc = raw[63:]
-    key  = hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, 200_000, dklen=32)
-    if hashlib.sha256(salt + enc + key).digest() != hmac_in:
-        raise RuntimeError('Authentication failed')
-    return zlib.decompress(_xor(enc, key))
+    if raw[:6] != _MAGIC:
+        print("CIRS: Invalid core.repack - file may be corrupted.")
+        sys.exit(1)
 
-def _inject(zip_data):
-    vfs = zipfile.ZipFile(io.BytesIO(zip_data))
-    def mk(name, code, pkg=False):
-        m = types.ModuleType(name); m.__package__ = name if pkg else name.rpartition('.')[0]
-        m.__path__ = [] if pkg else None; m.__file__ = '<repack>'; m.__spec__ = None
-        sys.modules[name] = m; exec(compile(code, f'<repack:{name}>', 'exec'), m.__dict__); return m
-    deferred = {}
-    for f in sorted(vfs.namelist()):
-        if not f.endswith('.py') or f in ('tui.py','server/main.py'): continue
-        parts = f[:-3].split('/'); dotname = '.'.join(parts); code = vfs.read(f).decode()
-        if parts[-1] == '__init__': mk('.'.join(parts[:-1]), code, pkg=True)
-        else: deferred[dotname] = code
-    for n,c in deferred.items():
-        if n not in sys.modules: mk(n, c)
-    return vfs.read('tui.py').decode() if 'tui.py' in vfs.namelist() else None
+    salt = raw[7:23]
+    hmac_input = raw[31:63]
+    encrypted = raw[63:]
+    key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 200_000, 32)
+    if hashlib.sha256(salt + encrypted + key).digest() != hmac_input:
+        print("CIRS: Authentication failed - wrong key or corrupted repack.")
+        sys.exit(1)
 
-if __name__ == '__main__':
-    try:
-        tui = _inject(_load('MYTZ_DEV_CZ'))
-        if not tui: print('ERROR: tui.py missing from repack'); sys.exit(1)
-        exec(compile(tui, '<tui>', 'exec'), {'__name__': '__main__'})
-    except RuntimeError as e:
-        print(f'CIRS: {e}'); sys.exit(1)
-"@
-Set-Content -Path $loaderDst -Value $loader -Encoding UTF8
-Msg "OK" "Core installed to $INSTALL_DIR"
+    return zlib.decompress(_xor(encrypted, key))
 
-# Step 6: Register 'cirs' command
-Msg "STEP" "Registering 'cirs' command..."
 
-$cmdBatch = Join-Path $INSTALL_DIR "cirs.cmd"
-$batchTxt = "@echo off`r`n`"$pythonCmd`" `"$loaderDst`" %*"
-Set-Content -Path $cmdBatch -Value $batchTxt -Encoding ASCII
+def _unpack(zip_data: bytes) -> Path:
+    temp_dir = Path(tempfile.mkdtemp(prefix="cirs_runtime_"))
+    atexit.register(shutil.rmtree, temp_dir, ignore_errors=True)
+    with zipfile.ZipFile(io.BytesIO(zip_data)) as archive:
+        archive.extractall(temp_dir)
+    return temp_dir
 
-$curPath = [System.Environment]::GetEnvironmentVariable("PATH","User")
-if ($curPath -notlike "*$INSTALL_DIR*") {
-    [System.Environment]::SetEnvironmentVariable("PATH","$curPath;$INSTALL_DIR","User")
-    Msg "INFO" "Added $INSTALL_DIR to PATH"
+
+def main() -> int:
+    workspace = Path(os.environ.get("CIRS_WORKSPACE", str(Path.home() / "CIRS_Workspace")))
+    config_dir = Path(os.environ.get("CIRS_CONFIG", str(Path.home() / ".cirs")))
+    os.environ.setdefault("CIRS_WORKSPACE", str(workspace))
+    os.environ.setdefault("CIRS_CONFIG", str(config_dir))
+    os.environ.setdefault("PYTHONUTF8", "1")
+
+    zip_data = _decrypt(_PASSWORD)
+    runtime_dir = _unpack(zip_data)
+    tui_path = runtime_dir / "tui.py"
+    if not tui_path.exists():
+        print("CIRS: tui.py not found inside core.repack.")
+        return 1
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(runtime_dir) + os.pathsep + env.get("PYTHONPATH", "")
+    result = subprocess.run([sys.executable, str(tui_path), *sys.argv[1:]], env=env)
+    return result.returncode
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+'@
+Set-Content -Path (Join-Path $InstallDir "_cirs_loader.py") -Value $LoaderCode -Encoding UTF8
+Write-Ok "Loader berhasil dibuat"
+
+Write-Step "Membuat config default"
+if ($Force -or -not (Test-Path $ConfigFile)) {
+    $DefaultConfig = @{
+        default_provider = $null
+        default_model = $null
+        api_keys = @{}
+        timeout = 60
+        max_retries = 3
+        debug = $false
+        output_language = "en"
+    } | ConvertTo-Json -Depth 4
+    Set-Content -Path $ConfigFile -Value $DefaultConfig -Encoding UTF8
+    Write-Ok "config.json dibuat"
+} else {
+    Write-Info "config.json sudah ada, dilewati"
 }
 
-# Also refresh current session
-$env:PATH = "$env:PATH;$INSTALL_DIR"
+Write-Step "Mendaftarkan command cirs"
+$CommandPath = Join-Path $InstallDir "cirs.cmd"
+$CommandBody = "@echo off`r`nset PYTHONUTF8=1`r`n`"$PythonCmd`" `"$InstallDir\_cirs_loader.py`" %*"
+Set-Content -Path $CommandPath -Value $CommandBody -Encoding ASCII
 
-Msg "OK" "'cirs' command registered."
+$UserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+if ([string]::IsNullOrWhiteSpace($UserPath)) {
+    $UserPath = $InstallDir
+} elseif ($UserPath -notlike "*$InstallDir*") {
+    $UserPath = "$UserPath;$InstallDir"
+}
+[System.Environment]::SetEnvironmentVariable("PATH", $UserPath, "User")
+$env:PATH = "$env:PATH;$InstallDir"
+Write-Ok "Command 'cirs' sudah terdaftar"
 
-# Summary
 Write-Host ""
-Write-Host "  Setup Complete!" -ForegroundColor Green
-Write-Host ""
-Write-Host "  HOW TO START" -ForegroundColor White
-Write-Host "    Open a new terminal and type:  cirs" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "  OUTPUT LOCATION" -ForegroundColor White
-Write-Host "    $WORKSPACE\output\" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  CONFIG FILE (API Keys)" -ForegroundColor White
-Write-Host "    $CONFIG_DIR\config.json" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  SESSION CACHE (for /continue)" -ForegroundColor White
-Write-Host "    $WORKSPACE\sessions\" -ForegroundColor Gray
+Write-Host "Setup selesai." -ForegroundColor Green
+Write-Host "Buka terminal baru lalu jalankan: cirs" -ForegroundColor Yellow
+Write-Host "Config API: $ConfigFile" -ForegroundColor Gray
+Write-Host "Output: $(Join-Path $WorkspaceDir 'output')" -ForegroundColor Gray
 Write-Host ""
