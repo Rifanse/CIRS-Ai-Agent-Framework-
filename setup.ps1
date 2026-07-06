@@ -1,6 +1,8 @@
 #Requires -Version 5.1
 param(
-    [switch]$Force
+    [switch]$Force,
+    [switch]$AutoLaunch,
+    [switch]$PauseOnExit
 )
 
 Set-StrictMode -Version Latest
@@ -27,6 +29,28 @@ function Write-Info([string]$Message) {
 function Fail([string]$Message) {
     Write-Host "[FAIL] $Message" -ForegroundColor Red
     exit 1
+}
+
+function Show-Banner {
+    Write-Host ""
+    Write-Host "   ____ ___ ____  ____" -ForegroundColor Green
+    Write-Host "  / ___|_ _|  _ \/ ___|" -ForegroundColor Green
+    Write-Host " | |    | || |_) \___ \" -ForegroundColor Cyan
+    Write-Host " | |___ | ||  _ < ___) |" -ForegroundColor Cyan
+    Write-Host "  \____|___|_| \_\____/" -ForegroundColor Blue
+    Write-Host ""
+    Write-Host "  Critical Innovation Reasoning System" -ForegroundColor White
+    Write-Host "  Installer publik untuk core.repack + runtime loader" -ForegroundColor DarkCyan
+    Write-Host ""
+}
+
+function Show-QuickGuide {
+    Write-Host "Panduan singkat:" -ForegroundColor Yellow
+    Write-Host "  1. /config   -> set provider + API key" -ForegroundColor Gray
+    Write-Host "  2. /idea ... -> jalankan ide atau problem solving" -ForegroundColor Gray
+    Write-Host "  3. /help     -> lihat command utama" -ForegroundColor Gray
+    Write-Host "  4. Ctrl+C    -> keluar dari CIRS" -ForegroundColor Gray
+    Write-Host ""
 }
 
 function Get-PythonCommand {
@@ -57,10 +81,7 @@ function Get-PythonCommand {
     return $null
 }
 
-Write-Host ""
-Write-Host "CIRS Framework Setup" -ForegroundColor Cyan
-Write-Host "Installer publik untuk core.repack + runtime loader" -ForegroundColor DarkCyan
-Write-Host ""
+Show-Banner
 
 Write-Step "Memeriksa file paket"
 if (-not (Test-Path $RepackFile)) {
@@ -202,7 +223,11 @@ if ($Force -or -not (Test-Path $ConfigFile)) {
 
 Write-Step "Mendaftarkan command cirs"
 $CommandPath = Join-Path $InstallDir "cirs.cmd"
-$CommandBody = "@echo off`r`nset PYTHONUTF8=1`r`n`"$PythonCmd`" `"$InstallDir\_cirs_loader.py`" %*"
+$CommandBody = (
+    "@echo off",
+    "set PYTHONUTF8=1",
+    ('"{0}" "{1}\_cirs_loader.py" %*' -f $PythonCmd, $InstallDir)
+) -join "`r`n"
 Set-Content -Path $CommandPath -Value $CommandBody -Encoding ASCII
 
 $UserPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
@@ -217,7 +242,26 @@ Write-Ok "Command 'cirs' sudah terdaftar"
 
 Write-Host ""
 Write-Host "Setup selesai." -ForegroundColor Green
-Write-Host "Buka terminal baru lalu jalankan: cirs" -ForegroundColor Yellow
+Write-Host "Runtime: $InstallDir" -ForegroundColor Gray
 Write-Host "Config API: $ConfigFile" -ForegroundColor Gray
 Write-Host "Output: $(Join-Path $WorkspaceDir 'output')" -ForegroundColor Gray
 Write-Host ""
+Show-QuickGuide
+
+if ($AutoLaunch) {
+    Write-Step "Menjalankan CIRS otomatis"
+    Write-Info "Backend Python akan dinyalakan otomatis oleh runtime saat TUI dibuka"
+    & $PythonCmd (Join-Path $InstallDir "_cirs_loader.py")
+    $LaunchExitCode = $LASTEXITCODE
+    if ($LaunchExitCode -ne 0) {
+        Write-Host ""
+        Write-Host "[WARN] CIRS keluar dengan kode $LaunchExitCode" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "Buka terminal baru lalu jalankan: cirs" -ForegroundColor Yellow
+    Write-Host ""
+}
+
+if ($PauseOnExit) {
+    Read-Host "Tekan Enter untuk menutup jendela PowerShell"
+}

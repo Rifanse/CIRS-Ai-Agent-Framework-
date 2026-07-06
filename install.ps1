@@ -1,4 +1,9 @@
 #Requires -Version 5.1
+param(
+    [switch]$NoAutoLaunch,
+    [switch]$NoPause
+)
+
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
@@ -16,6 +21,19 @@ function Write-Ok([string]$Message) {
 function Fail([string]$Message) {
     Write-Host "[FAIL] $Message" -ForegroundColor Red
     exit 1
+}
+
+function Show-Banner {
+    Write-Host ""
+    Write-Host "   ____ ___ ____  ____" -ForegroundColor Green
+    Write-Host "  / ___|_ _|  _ \/ ___|" -ForegroundColor Green
+    Write-Host " | |    | || |_) \___ \" -ForegroundColor Cyan
+    Write-Host " | |___ | ||  _ < ___) |" -ForegroundColor Cyan
+    Write-Host "  \____|___|_| \_\____/" -ForegroundColor Blue
+    Write-Host ""
+    Write-Host "  Critical Innovation Reasoning System" -ForegroundColor White
+    Write-Host "  Bootstrap installer untuk local file atau GitHub raw" -ForegroundColor DarkCyan
+    Write-Host ""
 }
 
 function Get-LocalScriptRoot {
@@ -71,10 +89,7 @@ function Download-InstallerFiles([string]$DestinationDir) {
     return $setupPath
 }
 
-Write-Host ""
-Write-Host "CIRS Public Installer" -ForegroundColor Cyan
-Write-Host "Bootstrap installer untuk local file atau GitHub raw" -ForegroundColor DarkCyan
-Write-Host ""
+Show-Banner
 
 $ScriptRoot = Get-LocalScriptRoot
 $SetupScript = $null
@@ -98,5 +113,7 @@ if (-not (Test-Path $SetupScript)) {
 }
 
 Write-Info "Menjalankan setup utama..."
-& powershell -NoProfile -ExecutionPolicy Bypass -File $SetupScript
+$ShouldAutoLaunch = -not $NoAutoLaunch
+$ShouldPause = -not $NoPause
+& $SetupScript -AutoLaunch:$ShouldAutoLaunch -PauseOnExit:$ShouldPause
 exit $LASTEXITCODE
