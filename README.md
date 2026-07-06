@@ -1,7 +1,6 @@
 # CIRS Innovation Engine
-Version 2.0
-Critical Innovation and Research System
--------------------------------------------------------------------------------
+*Version 2.0*
+*Critical Innovation and Research System*
 
 ## OVERVIEW
 
@@ -11,8 +10,6 @@ multi-perspective innovation blueprint.
 
 The entire source code is encrypted inside core.repack and is never written
 to disk in plaintext. Only the runtime memory holds the active code.
-
-================================================================================
 
 ## REQUIREMENTS
 
@@ -25,7 +22,6 @@ to disk in plaintext. Only the runtime memory holds the active code.
     Anthropic (Claude)          : console.anthropic.com
     OpenRouter                  : openrouter.ai
 
-================================================================================
 
 ## INSTALLATION
 ```
@@ -50,9 +46,8 @@ OR Simple Use Powershell to instalations
 ```
 irm https://github.com/Rifanse/CIRS-Ai-Agent-Framework-.git/main/install.ps1 | iex
 ```
-================================================================================
 
-USAGE
+## USAGE
 
 Start CIRS by typing in any terminal:
 
@@ -64,26 +59,25 @@ provider and API key to activate the AI agents.
 After configuration, type any problem or topic in the input field to start
 the full 12-stage innovation pipeline.
 
-================================================================================
 
-PIPELINE STAGES
+## PIPELINE STAGES
 
 The following 12 stages run automatically when you submit a problem:
-
-  Stage  1   Problem Structuring
-  Stage  2   Cross-Domain Research
-  Stage  3   Parallel Solution Exploration  (30-50 diverse hypotheses)
-  Stage  4   Reality Filtering              (Feasibility x Impact x Speed x Cost)
-  Stage  5   Future Simulation              (Short / Mid / Long-term timelines)
-  Stage  6   Multi-Agent Debate             (10 expert personas, 6 debate rounds)
+```
+ | Stage  1   Problem Structuring
+ | Stage  2   Cross-Domain Research
+ | Stage  3   Parallel Solution Exploration  (30-50 diverse hypotheses)
+ | Stage  4   Reality Filtering              (Feasibility x Impact x Speed x Cost)
+ | Stage  5   Future Simulation              (Short / Mid / Long-term timelines)
+ | Stage  6   Multi-Agent Debate             (10 expert personas, 6 debate rounds)
              [USER INPUT REQUIRED HERE]     (Select your preferred strategy direction)
-  Stage  7   Innovation Synthesis           (Cross-idea fusion, emergent design)
-  Stage  8   Failure Injection              (Red-team stress test across 20 dimensions)
-  Stage  9   Iterative Optimization         (Continuous improvement loop)
-  Stage 10   Decision Engine                (Multi-criteria weighted scoring)
-  Stage 11   Knowledge Extraction           (Reusable patterns and principles)
-  Stage 12   Meta Reflection                (AI evaluates its own reasoning biases)
-
+ | Stage  7   Innovation Synthesis           (Cross-idea fusion, emergent design)
+ | Stage  8   Failure Injection              (Red-team stress test across 20 dimensions)
+ | Stage  9   Iterative Optimization         (Continuous improvement loop)
+ | Stage 10   Decision Engine                (Multi-criteria weighted scoring)
+ | Stage 11   Knowledge Extraction           (Reusable patterns and principles)
+ | Stage 12   Meta Reflection                (AI evaluates its own reasoning biases)
+```
 User input is only required once at Stage 6 to select a strategic direction.
 All other stages run automatically with input locked.
 
