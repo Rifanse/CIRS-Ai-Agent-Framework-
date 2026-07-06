@@ -215,7 +215,7 @@ if ($Force -or -not (Test-Path $ConfigFile)) {
         debug = $false
         output_language = "en"
     } | ConvertTo-Json -Depth 4
-    Set-Content -Path $ConfigFile -Value $DefaultConfig -Encoding UTF8
+    Set-Content -Path $ConfigFile -Value $DefaultConfig -Encoding ASCII
     Write-Ok "config.json dibuat"
 } else {
     Write-Info "config.json sudah ada, dilewati"
