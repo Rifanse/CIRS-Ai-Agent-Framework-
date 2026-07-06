@@ -23,8 +23,11 @@ function Get-LocalScriptRoot {
         return $PSScriptRoot
     }
 
-    if ($MyInvocation.MyCommand.Path -and $MyInvocation.MyCommand.Path.Trim() -ne "") {
-        return (Split-Path -Parent $MyInvocation.MyCommand.Path)
+    if ($MyInvocation -and $MyInvocation.MyCommand) {
+        $pathProperty = $MyInvocation.MyCommand.PSObject.Properties["Path"]
+        if ($pathProperty -and $pathProperty.Value -and $pathProperty.Value.Trim() -ne "") {
+            return (Split-Path -Parent $pathProperty.Value)
+        }
     }
 
     return $null
