@@ -1,6 +1,4 @@
 
-![Simpel Ui Preview - TUI usages for Cli.](https://github.com/Rifanse/CIRS-Ai-Agent-Framework-/blob/main/image.png?raw=true)
-
 # CIRS Innovation Engine
 *Version 2.0*
 *Critical Innovation and Research System*
@@ -155,4 +153,8 @@ _Frameworks is free, i hope this framework can be help on next How to think crea
 Donate  : https://trakteer.id/RefZol/tip
 
 For more support you can contact, email debruegeorfaus@gmail.com or join our Community .
+
+# PREVIEW
+
+![Simpel Ui Preview - TUI usages for Cli.](https://github.com/Rifanse/CIRS-Ai-Agent-Framework-/blob/main/image.png?raw=true)
 
